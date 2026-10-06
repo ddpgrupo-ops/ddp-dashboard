@@ -64,21 +64,13 @@ st.markdown("""
         color: #1A365D !important;
     }
     
-    /* Ajuste rudo para forzar que los números y títulos nunca se corten con "..." */
+    /* Ajuste para que quepan los millones dentro de su caja */
     [data-testid="stMetricValue"] {
-        font-size: 1.15rem !important;
-    }
-    [data-testid="stMetricValue"] > div {
-        overflow: visible !important;
-        white-space: normal !important;
+        font-size: 1.1rem !important; /* Más chico para que quepa perfecto */
+        font-weight: 700 !important;
     }
     [data-testid="stMetricLabel"] {
         font-size: 0.75rem !important;
-    }
-    [data-testid="stMetricLabel"] > div > div > p {
-        overflow: visible !important;
-        white-space: normal !important;
-        line-height: 1.1 !important;
     }
 </style>
 """, unsafe_allow_html=True)
