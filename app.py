@@ -13,7 +13,6 @@ st.markdown("""
 <style>
     /* Ocultar elementos de Streamlit para que parezca una Web App propia */
     #MainMenu {visibility: hidden;}
-    header {visibility: hidden;}
     footer {visibility: hidden;}
     
     /* Espaciado general más limpio */
@@ -524,7 +523,7 @@ st.markdown(
     <div style='text-align: center; color: #94a3b8; font-size: 13px;'>
         <strong>Dirección Desarrollo Proyectos</strong><br>
         Dashboard diseñado e implementado por TI DDP (Leonardo Velázquez).<br>
-        Derechos reservados &copy; 2026. Versión de Sistema v1.14.0
+        Derechos reservados &copy; 2026. Versión de Sistema v1.15.0
     </div>
     """,
     unsafe_allow_html=True
