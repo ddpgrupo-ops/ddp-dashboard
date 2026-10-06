@@ -64,10 +64,9 @@ st.markdown("""
         color: #1A365D !important;
     }
     
-    /* Ajuste para que quepan los millones dentro de su caja */
-    [data-testid="stMetricValue"] {
-        font-size: 1.1rem !important; /* Más chico para que quepa perfecto */
-        font-weight: 700 !important;
+    /* Ajuste definitivo para el tamaño de las métricas */
+    div[data-testid="stMetricValue"] > div {
+        font-size: 1.2rem !important; /* Más chico para que quepa perfecto */
     }
     [data-testid="stMetricLabel"] {
         font-size: 0.75rem !important;
@@ -525,7 +524,7 @@ st.markdown(
     <div style='text-align: center; color: #94a3b8; font-size: 13px;'>
         <strong>Dirección Desarrollo Proyectos</strong><br>
         Dashboard diseñado e implementado por TI DDP (Leonardo Velázquez).<br>
-        Derechos reservados &copy; 2026. Versión de Sistema v1.13.0
+        Derechos reservados &copy; 2026. Versión de Sistema v1.14.0
     </div>
     """,
     unsafe_allow_html=True
