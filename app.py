@@ -63,6 +63,14 @@ st.markdown("""
         font-weight: 600 !important;
         color: #1A365D !important;
     }
+    
+    /* Ajuste para evitar que los números grandes se corten con "..." en las tarjetas */
+    [data-testid="stMetricValue"] {
+        font-size: 1.5rem !important;
+    }
+    [data-testid="stMetricLabel"] {
+        font-size: 0.85rem !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -219,9 +227,9 @@ if mes_seleccionado != "Acumulado de todos los meses":
 
 # Filtro: Proyecto
 opciones_proyecto = df['TT'].dropna().unique().tolist()
-proyecto_seleccionado = st.sidebar.radio("Centro de Costos / Proyecto:", options=["Consolidado (Ambos)"] + opciones_proyecto)
+proyecto_seleccionado = st.sidebar.radio("Centro de Costos / Proyecto:", options=["Consolidado General"] + opciones_proyecto)
 
-if proyecto_seleccionado != "Consolidado (Ambos)":
+if proyecto_seleccionado != "Consolidado General":
     df_filtrado = df[df['TT'] == proyecto_seleccionado]
 else:
     df_filtrado = df.copy()
@@ -244,9 +252,10 @@ margen = (utilidad / total_ingresos * 100) if total_ingresos > 0 else 0
 PRESUPUESTOS = {
     "HOSPITAL": 32371388.04,
     "ESTANCIA": 1490474.12,
+    "PITAHAYA": 35912747.18
 }
 
-if proyecto_seleccionado == "Consolidado (Ambos)":
+if proyecto_seleccionado == "Consolidado General":
     presupuesto_total = sum(PRESUPUESTOS.values())
 else:
     # Aseguramos coincidencia de texto
@@ -515,7 +524,7 @@ st.markdown(
     <div style='text-align: center; color: #94a3b8; font-size: 13px;'>
         <strong>Dirección Desarrollo Proyectos</strong><br>
         Dashboard diseñado e implementado por TI DDP (Leonardo Velázquez).<br>
-        Derechos reservados &copy; 2026. Versión de Sistema v1.11.0
+        Derechos reservados &copy; 2026. Versión de Sistema v1.12.0
     </div>
     """,
     unsafe_allow_html=True
