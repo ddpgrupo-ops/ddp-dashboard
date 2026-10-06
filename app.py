@@ -203,6 +203,31 @@ def load_data(file):
     for col in ['TIPO 2', 'TT', 'MES', 'AÑO', 'CONCEPTO']:
         if col in df.columns:
             df[col] = df[col].astype(str).str.strip()
+            
+    # Traductor inteligente para la columna MES (Convierte "10 2025" o "102025" a "2025-10 (Octubre)")
+    if 'MES' in df.columns:
+        def limpiar_mes(val):
+            val_str = str(val).strip().replace(" ", "")
+            val_str = val_str.split('.')[0] # Quitar decimales si Pandas lo leyó como float
+            
+            if len(val_str) == 6 and val_str.isdigit():
+                mes = val_str[:2]
+                ano = val_str[2:]
+            elif len(val_str) == 5 and val_str.isdigit():
+                mes = f"0{val_str[0]}"
+                ano = val_str[1:]
+            else:
+                return val # Dejarlo intacto si no cumple el formato
+                
+            meses_nombres = {
+                "01": "Enero", "02": "Febrero", "03": "Marzo", "04": "Abril",
+                "05": "Mayo", "06": "Junio", "07": "Julio", "08": "Agosto",
+                "09": "Septiembre", "10": "Octubre", "11": "Noviembre", "12": "Diciembre"
+            }
+            nombre = meses_nombres.get(mes, mes)
+            return f"{ano}-{mes} ({nombre})"
+            
+        df['MES'] = df['MES'].apply(limpiar_mes)
 
     if 'AÑO' in df.columns:
         df['AÑO'] = df['AÑO'].str.replace('.0', '', regex=False)
@@ -487,10 +512,14 @@ if not df_egresos.empty:
     df_concepto_mes = df_egresos.groupby(['MES', 'CONCEPTO'])['COSTO S/IVA'].sum().reset_index()
     
     # Gráfica de Barras Apiladas (100% corporativo)
+    # Forzamos que MES sea tratado como texto (categoría) para evitar que Plotly lo intente graficar como números continuos
+    df_concepto_mes['MES'] = df_concepto_mes['MES'].astype(str)
+    
     fig3 = px.bar(df_concepto_mes, x='MES', y='COSTO S/IVA', color='CONCEPTO',
                   labels={'COSTO S/IVA': 'Gasto Acumulado ($)', 'MES': ''},
                   color_discrete_sequence=px.colors.qualitative.Safe)
     fig3.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", barmode='stack', legend_title_text="Concepto de Gasto")
+    fig3.update_xaxes(type='category')
     st.plotly_chart(fig3, use_container_width=True)
     
 # --- SECCIÓN MATRIZ FINANCIERA (TABLA DINÁMICA) ---
@@ -513,11 +542,34 @@ if not df_egresos.empty:
     # Agregar fila de 'Total general' (Suma vertical)
     pivot_df.loc['Total general'] = pivot_df.sum(axis=0)
     
-    # Mostrar la tabla con formato de moneda en toda la pantalla
+    # Función para dar formato visual corporativo a los Totales
+    def estilo_totales(row):
+        estilos = []
+        es_fila_total = (row.name == 'Total general')
+        for col in row.index:
+            es_col_total = (col == 'Total general')
+            if es_fila_total and es_col_total:
+                # Esquina inferior derecha (Gran Total)
+                estilos.append('background-color: #1A365D; color: white; font-weight: bold;')
+            elif es_fila_total:
+                # Fila de Totales (Abajo)
+                estilos.append('background-color: #e2e8f0; font-weight: bold; color: #0f172a;')
+            elif es_col_total:
+                # Columna de Totales (Derecha)
+                estilos.append('background-color: #f1f5f9; font-weight: bold; color: #1e293b;')
+            else:
+                # Celdas normales
+                estilos.append('')
+        return estilos
+
+    # Aplicar el estilo y formato de moneda
+    tabla_estilizada = pivot_df.style.format("${:,.2f}").apply(estilo_totales, axis=1)
+    
+    # Mostrar la tabla en toda la pantalla
     st.dataframe(
-        pivot_df.style.format("${:,.2f}"), 
+        tabla_estilizada, 
         use_container_width=True,
-        height=400
+        height=450
     )
 else:
     st.info("No hay datos para generar la tabla dinámica.")
@@ -537,7 +589,7 @@ st.markdown(
     <div style='text-align: center; color: #94a3b8; font-size: 13px;'>
         <strong>Dirección Desarrollo Proyectos</strong><br>
         Dashboard diseñado e implementado por TI DDP (J. Leonardo Velázques Rocha).<br>
-        Derechos reservados &copy; 2026. Versión de Sistema v1.20.0
+        Derechos reservados &copy; 2026. Versión de Sistema v1.23.0
     </div>
     """,
     unsafe_allow_html=True
