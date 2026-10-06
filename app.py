@@ -64,12 +64,21 @@ st.markdown("""
         color: #1A365D !important;
     }
     
-    /* Ajuste para evitar que los números grandes se corten con "..." en las tarjetas */
+    /* Ajuste rudo para forzar que los números y títulos nunca se corten con "..." */
     [data-testid="stMetricValue"] {
-        font-size: 1.5rem !important;
+        font-size: 1.15rem !important;
+    }
+    [data-testid="stMetricValue"] > div {
+        overflow: visible !important;
+        white-space: normal !important;
     }
     [data-testid="stMetricLabel"] {
-        font-size: 0.85rem !important;
+        font-size: 0.75rem !important;
+    }
+    [data-testid="stMetricLabel"] > div > div > p {
+        overflow: visible !important;
+        white-space: normal !important;
+        line-height: 1.1 !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -524,7 +533,7 @@ st.markdown(
     <div style='text-align: center; color: #94a3b8; font-size: 13px;'>
         <strong>Dirección Desarrollo Proyectos</strong><br>
         Dashboard diseñado e implementado por TI DDP (Leonardo Velázquez).<br>
-        Derechos reservados &copy; 2026. Versión de Sistema v1.12.0
+        Derechos reservados &copy; 2026. Versión de Sistema v1.13.0
     </div>
     """,
     unsafe_allow_html=True
