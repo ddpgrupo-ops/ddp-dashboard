@@ -145,20 +145,41 @@ def load_data(file):
             st.error(f"Error al procesar el archivo: {e}")
             return pd.DataFrame()
     else:
-        local_path = "datos_chetumal.csv"
-        if os.path.exists(local_path):
-            df = pd.read_csv(local_path, encoding='utf-8')
+        # Fallback 1: Buscar URL segura en los secretos de Streamlit (Google Sheets)
+        if "CSV_URL" in st.secrets:
+            try:
+                df = pd.read_csv(st.secrets["CSV_URL"])
+            except Exception as e:
+                st.error(f"Error al conectar con la base de datos segura: {e}")
+                return pd.DataFrame()
+        # Fallback 2: Archivo local (si existe)
         else:
-            if role == "admin":
-                st.warning("⚠️ Sube la base de datos en el panel izquierdo.")
+            local_path = "datos_chetumal.csv"
+            if os.path.exists(local_path):
+                df = pd.read_csv(local_path, encoding='utf-8')
             else:
-                st.warning("⚠️ El departamento de TI no ha publicado los datos de este periodo.")
-            return pd.DataFrame()
+                if role == "admin":
+                    st.warning("⚠️ Sube la base de datos en el panel izquierdo o configura el Google Sheet.")
+                else:
+                    st.warning("⚠️ El departamento de TI no ha publicado los datos de este periodo.")
+                return pd.DataFrame()
             
-    if 'COSTO S/IVA' in df.columns:
-        # Extraer solo números, puntos y signos negativos, ignorando todo lo demás
-        df['COSTO S/IVA'] = df['COSTO S/IVA'].astype(str).str.replace(r'[^\d.-]', '', regex=True)
-        df['COSTO S/IVA'] = pd.to_numeric(df['COSTO S/IVA'], errors='coerce').fillna(0)
+    if 'df' in locals() and not df.empty:
+        # --- AUTO-MAPEO DE COLUMNAS (Soporte para múltiples formatos) ---
+        # Si el Excel trae 'OBRA' en lugar de 'TT', o 'COSTO' en lugar de 'COSTO S/IVA'
+        column_mapping = {
+            'OBRA': 'TT',          # Proyecto Pitahaya
+            'COSTO': 'COSTO S/IVA', # Monto
+            'TIPO': 'TIPO 2'       # INGRESO/EGRESO
+        }
+        for old_col, new_col in column_mapping.items():
+            if old_col in df.columns and new_col not in df.columns:
+                df.rename(columns={old_col: new_col}, inplace=True)
+                
+        if 'COSTO S/IVA' in df.columns:
+            # Extraer solo números, puntos y signos negativos, ignorando todo lo demás
+            df['COSTO S/IVA'] = df['COSTO S/IVA'].astype(str).str.replace(r'[^\d.-]', '', regex=True)
+            df['COSTO S/IVA'] = pd.to_numeric(df['COSTO S/IVA'], errors='coerce').fillna(0)
     
     # Limpiar espacios en blanco de columnas de texto clave para evitar fallos en filtros
     for col in ['TIPO 2', 'TT', 'MES', 'AÑO', 'CONCEPTO']:
@@ -494,7 +515,7 @@ st.markdown(
     <div style='text-align: center; color: #94a3b8; font-size: 13px;'>
         <strong>Dirección Desarrollo Proyectos</strong><br>
         Dashboard diseñado e implementado por TI DDP (Leonardo Velázquez).<br>
-        Derechos reservados &copy; 2026. Versión de Sistema v1.9.0
+        Derechos reservados &copy; 2026. Versión de Sistema v1.11.0
     </div>
     """,
     unsafe_allow_html=True
