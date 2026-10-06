@@ -76,8 +76,11 @@ st.markdown("""
 
 # --- 1. SISTEMA DE SEGURIDAD / LOGIN ---
 USERS = {
-    "jorge.delamora@ddp.mx": {"password": "DDP0025", "role": "viewer", "name": "Jorge de la Mora"},
-    "leonardo.velazquez@ddp.mx": {"password": "DDP2505", "role": "admin", "name": "Leonardo Velázquez"}
+    "jorge.delamora@ddp.mx": {"password": "DDP0025", "role": "viewer", "name": "Jorge de la Mora", "title": "Director General / Socio"},
+    "maricarmen.plata@ddp.mx": {"password": "DDP0012", "role": "viewer", "name": "Maricarmen Plata Castro", "title": "Asistente de Dirección"},
+    "raul.ramirez@ddp.mx": {"password": "DDP0149", "role": "viewer", "name": "Raúl Ramírez Domínguez", "title": "Gerente Administrativo"},
+    "manuel.acosta@ddp.mx": {"password": "DDP1489", "role": "viewer", "name": "Manuel Acosta del Río", "title": "Director de Operaciones"},
+    "leonardo.velazquez@ddp.mx": {"password": "DDP2505", "role": "admin", "name": "J. Leonardo Velázques Rocha", "title": "Gerente de TI & Telecom"}
 }
 
 def check_password():
@@ -89,6 +92,7 @@ def check_password():
             st.session_state["password_correct"] = True
             st.session_state["role"] = USERS[user]["role"]
             st.session_state["name"] = USERS[user]["name"]
+            st.session_state["title"] = USERS[user]["title"]
             del st.session_state["password"]
         else:
             st.session_state["password_correct"] = False
@@ -130,6 +134,7 @@ if not check_password():
 # --- 2. CARGA Y PROCESAMIENTO DE DATOS ---
 role = st.session_state.get("role", "viewer")
 user_name = st.session_state.get("name", "Ejecutivo")
+user_title = st.session_state.get("title", "")
 
 uploaded_file = None
 if role == "admin":
@@ -153,9 +158,15 @@ def load_data(file):
             return pd.DataFrame()
     else:
         # Fallback 1: Buscar URL segura en los secretos de Streamlit (Google Sheets)
-        if "CSV_URL" in st.secrets:
+        csv_url = None
+        try:
+            csv_url = st.secrets.get("CSV_URL")
+        except Exception:
+            pass # Si corre local y no hay archivo de secretos, ignorar
+
+        if csv_url:
             try:
-                df = pd.read_csv(st.secrets["CSV_URL"])
+                df = pd.read_csv(csv_url)
             except Exception as e:
                 st.error(f"Error al conectar con la base de datos segura: {e}")
                 return pd.DataFrame()
@@ -270,7 +281,10 @@ avance_cobranza = (total_ingresos / presupuesto_total * 100) if presupuesto_tota
 st.markdown(f"<h1 style='color: #0f172a; margin-bottom: 0px;'>Dashboard Financiero: {proyecto_seleccionado}</h1>", unsafe_allow_html=True)
 texto_periodo = f"Año: {ano_seleccionado}" if ano_seleccionado != "Histórico Total" else "Histórico Completo"
 texto_mes = f" | Mes: {mes_seleccionado}" if mes_seleccionado != "Acumulado de todos los meses" else " | Acumulado total"
-st.markdown(f"<p style='color: #64748b; font-size: 16px;'>{texto_periodo}{texto_mes} | Visualizando como: <strong>{user_name}</strong></p>", unsafe_allow_html=True)
+if user_title:
+    st.markdown(f"<p style='color: #64748b; font-size: 16px; margin-top: -10px;'>{texto_periodo}{texto_mes} | Visualizando como: <strong>{user_name}</strong> <span style='font-size: 14px;'>({user_title})</span></p>", unsafe_allow_html=True)
+else:
+    st.markdown(f"<p style='color: #64748b; font-size: 16px; margin-top: -10px;'>{texto_periodo}{texto_mes} | Visualizando como: <strong>{user_name}</strong></p>", unsafe_allow_html=True)
 st.markdown("<br>", unsafe_allow_html=True)
 
 # --- KPIs (Tarjetas Superiores) ---
@@ -522,8 +536,8 @@ st.markdown(
     """
     <div style='text-align: center; color: #94a3b8; font-size: 13px;'>
         <strong>Dirección Desarrollo Proyectos</strong><br>
-        Dashboard diseñado e implementado por TI DDP (Leonardo Velázquez).<br>
-        Derechos reservados &copy; 2026. Versión de Sistema v1.15.0
+        Dashboard diseñado e implementado por TI DDP (J. Leonardo Velázques Rocha).<br>
+        Derechos reservados &copy; 2026. Versión de Sistema v1.20.0
     </div>
     """,
     unsafe_allow_html=True
