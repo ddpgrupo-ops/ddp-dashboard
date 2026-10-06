@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-import numpy as np
 import os
 
 # Configuración inicial de la página (Debe ser la primera línea de código de Streamlit)
@@ -107,7 +106,7 @@ def check_password():
             
             with st.form("login_form"):
                 st.text_input("Correo Institucional", key="username", placeholder="ejemplo@ddp.mx", autocomplete="username")
-                st.text_input("Contraseña", type="password", key="password", placeholder="••••••••")
+                st.text_input("Contraseña", type="password", key="password", placeholder="••••••••", autocomplete="current-password")
                 st.checkbox("Mantener sesión iniciada", key="remember_me", help="El navegador recordará tu acceso.")
                 st.form_submit_button("Acceder de forma segura", on_click=password_entered, use_container_width=True)
             
@@ -121,7 +120,7 @@ def check_password():
             st.markdown("<h2 style='text-align: center; color: #1e293b;'>Plataforma Ejecutiva</h2>", unsafe_allow_html=True)
             with st.form("login_form"):
                 st.text_input("Correo Institucional", key="username", placeholder="ejemplo@ddp.mx", autocomplete="username")
-                st.text_input("Contraseña", type="password", key="password")
+                st.text_input("Contraseña", type="password", key="password", autocomplete="current-password")
                 st.form_submit_button("Acceder de forma segura", on_click=password_entered, use_container_width=True)
             st.error("🚨 Credenciales incorrectas. Verifique e intente de nuevo.")
         return False
@@ -272,15 +271,70 @@ mes_seleccionado = st.sidebar.selectbox("Mes de Análisis:", options=["Acumulado
 if mes_seleccionado != "Acumulado de todos los meses":
     df = df[df['MES'] == mes_seleccionado]
 
-# Filtro: Proyecto
-opciones_proyecto = df['TT'].dropna().unique().tolist()
-proyecto_seleccionado = st.sidebar.radio("Centro de Costos / Proyecto:", options=["Consolidado General"] + opciones_proyecto)
+# --- FILTROS MULTI-EMPRESA EN CASCADA ---
+if 'EMPRESA' in df.columns and not df['EMPRESA'].dropna().empty:
+    df['EMPRESA'] = df['EMPRESA'].astype(str).str.strip().str.upper()
+    opciones_empresa = df['EMPRESA'].unique().tolist()
+    
+    st.sidebar.markdown("<h3 style='color: #1A365D; margin-bottom: 0px;'>🏢 Corporativo</h3>", unsafe_allow_html=True)
+    empresa_seleccionada = st.sidebar.selectbox("Filtro de Empresa / Grupo:", options=["Grupo Consolidado (Todas)"] + opciones_empresa)
+    
+    if empresa_seleccionada != "Grupo Consolidado (Todas)":
+        df_empresa = df[df['EMPRESA'] == empresa_seleccionada]
+        texto_consolidado_empresa = f"Consolidado {empresa_seleccionada}"
+    else:
+        df_empresa = df.copy()
+        texto_consolidado_empresa = "Consolidado General (Grupo)"
 
-if proyecto_seleccionado != "Consolidado General":
-    df_filtrado = df[df['TT'] == proyecto_seleccionado]
-    df_para_tendencia = df_para_tendencia[df_para_tendencia['TT'] == proyecto_seleccionado]
+    # Filtro opcional por Cliente (Nivel 2 de cascada)
+    cliente_seleccionado = "Todos los Clientes"
+    if 'CLIENTE' in df.columns and not df_empresa['CLIENTE'].dropna().empty:
+        df_empresa['CLIENTE'] = df_empresa['CLIENTE'].astype(str).str.strip().str.upper()
+        opciones_cliente = df_empresa['CLIENTE'].unique().tolist()
+        cliente_seleccionado = st.sidebar.selectbox("Filtro de Cliente:", options=["Todos los Clientes"] + opciones_cliente)
+        
+        if cliente_seleccionado != "Todos los Clientes":
+            df_cliente = df_empresa[df_empresa['CLIENTE'] == cliente_seleccionado]
+            texto_consolidado = f"Consolidado {cliente_seleccionado}"
+            titulo_proyectos = f"Sub-proyectos ({cliente_seleccionado}):"
+        else:
+            df_cliente = df_empresa.copy()
+            texto_consolidado = texto_consolidado_empresa
+            titulo_proyectos = f"Proyectos de {empresa_seleccionada}:" if empresa_seleccionada != "Grupo Consolidado (Todas)" else "Todos los Proyectos:"
+    else:
+        df_cliente = df_empresa.copy()
+        texto_consolidado = texto_consolidado_empresa
+        titulo_proyectos = f"Proyectos de {empresa_seleccionada}:" if empresa_seleccionada != "Grupo Consolidado (Todas)" else "Todos los Proyectos:"
+
+    opciones_proyecto = df_cliente['TT'].dropna().unique().tolist()
+    
+    st.sidebar.markdown("<hr style='margin: 15px 0;'>", unsafe_allow_html=True)
+    proyecto_seleccionado = st.sidebar.radio(titulo_proyectos, options=[texto_consolidado] + opciones_proyecto)
+    
+    # Aplicar el filtro final (Nivel 3 de cascada)
+    if proyecto_seleccionado == texto_consolidado:
+        df_filtrado = df_cliente.copy()
+    else:
+        df_filtrado = df_cliente[df_cliente['TT'] == proyecto_seleccionado]
+        
+    # Filtrar df_para_tendencia de forma independiente del mes
+    if empresa_seleccionada != "Grupo Consolidado (Todas)":
+        df_para_tendencia = df_para_tendencia[df_para_tendencia['EMPRESA'] == empresa_seleccionada]
+    if cliente_seleccionado != "Todos los Clientes":
+        df_para_tendencia = df_para_tendencia[df_para_tendencia['CLIENTE'] == cliente_seleccionado]
+    if proyecto_seleccionado != texto_consolidado:
+        df_para_tendencia = df_para_tendencia[df_para_tendencia['TT'] == proyecto_seleccionado]
+        
 else:
-    df_filtrado = df.copy()
+    # Lógica original si no existe la columna EMPRESA
+    opciones_proyecto = df['TT'].dropna().unique().tolist()
+    proyecto_seleccionado = st.sidebar.radio("Centros de Costos DDP / Proyectos:", options=["Consolidado General"] + opciones_proyecto)
+    
+    if proyecto_seleccionado != "Consolidado General":
+        df_filtrado = df[df['TT'] == proyecto_seleccionado]
+        df_para_tendencia = df_para_tendencia[df_para_tendencia['TT'] == proyecto_seleccionado]
+    else:
+        df_filtrado = df.copy()
 
 st.sidebar.markdown("<br><br><br>", unsafe_allow_html=True)
 if st.sidebar.button("Cerrar Sesión Segura", type="primary", use_container_width=True):
@@ -300,13 +354,20 @@ margen = (utilidad / total_ingresos * 100) if total_ingresos > 0 else 0
 PRESUPUESTOS = {
     "HOSPITAL CHET": 32371388.04,
     "ESTANCIA CHET": 1490474.12,
-    "PITAHAYA SLP": 35912747.18
+    "PITAHAYA SLP": 35912747.18,
+    "VIAS CHIS": 22953262.77,
+    "PUENTES CHIS": 30311159.85
 }
 
-if proyecto_seleccionado == "Consolidado General":
+if "Consolidado" in proyecto_seleccionado and "General" in proyecto_seleccionado:
     presupuesto_total = sum(PRESUPUESTOS.values())
+elif "Consolidado DDP" in proyecto_seleccionado:
+    presupuesto_total = PRESUPUESTOS.get("HOSPITAL CHET", 0) + PRESUPUESTOS.get("ESTANCIA CHET", 0) + PRESUPUESTOS.get("PITAHAYA SLP", 0)
+elif "Consolidado CAISC" in proyecto_seleccionado or "Consolidado TRANSISTMICO" in proyecto_seleccionado:
+    presupuesto_total = PRESUPUESTOS.get("VIAS CHIS", 0) + PRESUPUESTOS.get("PUENTES CHIS", 0)
+elif "Consolidado" in proyecto_seleccionado:
+    presupuesto_total = 0 # Para otras futuras consolidaciones sin presupuesto
 else:
-    # Aseguramos coincidencia de texto
     clave_proy = proyecto_seleccionado.strip().upper()
     presupuesto_total = PRESUPUESTOS.get(clave_proy, 0)
 
@@ -375,7 +436,6 @@ col_trend, col_burn = st.columns([2.5, 1.5])
 with col_trend:
     st.markdown("<div class='seccion-titulo'>Tendencia de Utilidad (Línea de Tiempo)</div>", unsafe_allow_html=True)
     if not df_trend.empty:
-        import plotly.graph_objects as go
         fig_trend = go.Figure()
         fig_trend.add_trace(go.Scatter(x=df_trend['MES'], y=df_trend['Utilidad'], mode='lines+markers', name='Utilidad Neta ($)',
                                        line=dict(color='#1A365D', width=4), marker=dict(size=8, color='#d62728')))
@@ -566,7 +626,6 @@ with tab_pareto:
         df_pareto['Acumulado'] = df_pareto['Porcentaje'].cumsum()
         
         # Plotly Pareto
-        import plotly.graph_objects as go
         from plotly.subplots import make_subplots
         
         fig_pareto = make_subplots(specs=[[{"secondary_y": True}]])
@@ -611,7 +670,6 @@ with tab_treemap:
     st.markdown("<p style='color: #64748b;'>Visualización de impacto: El tamaño del bloque representa el peso económico de cada concepto. Útil para ubicar 'fugas' visualmente.</p>", unsafe_allow_html=True)
     
     if not df_egresos.empty:
-        import plotly.express as px
         df_tree = df_egresos.groupby('CONCEPTO')['COSTO S/IVA'].sum().reset_index()
         # Add a root node column to group them all
         df_tree['Proyecto'] = "Total Egresos"
@@ -833,6 +891,76 @@ if not df_egresos.empty:
 else:
     st.info("No hay datos para generar la tabla dinámica.")
 
+# --- SECCIÓN AUDITORÍA (DRILL-DOWN) ---
+st.markdown("<br><br><div class='seccion-titulo'>🔍 Auditoría de Transacciones (Drill-Down)</div>", unsafe_allow_html=True)
+st.markdown("<p style='color: #64748b;'>Filtrado dinámico a nivel factura para auditoría rápida de gastos específicos.</p>", unsafe_allow_html=True)
+
+col1, col2 = st.columns(2)
+with col1:
+    meses_disponibles = ['Todos'] + sorted(df_filtrado['MES'].dropna().unique().tolist())
+    mes_auditoria = st.selectbox("📅 Selecciona el Mes:", options=meses_disponibles, key="drill_mes")
+with col2:
+    conceptos_disponibles = ['Todos'] + sorted(df_filtrado['CONCEPTO'].dropna().unique().tolist())
+    concepto_auditoria = st.selectbox("📂 Selecciona el Concepto:", options=conceptos_disponibles, key="drill_concepto")
+    
+# Filtrar el dataframe puro
+df_auditoria = df_filtrado.copy()
+
+if mes_auditoria != 'Todos':
+    df_auditoria = df_auditoria[df_auditoria['MES'] == mes_auditoria]
+if concepto_auditoria != 'Todos':
+    df_auditoria = df_auditoria[df_auditoria['CONCEPTO'] == concepto_auditoria]
+    
+# Ocultar columnas técnicas o repetitivas para limpiar la vista
+columnas_a_ocultar = ['CC', 'AÑO', 'CUENTA', 'TT', 'EMPRESA', 'CLIENTE', 'TIPO 2']
+columnas_presentes = [c for c in columnas_a_ocultar if c in df_auditoria.columns]
+if columnas_presentes:
+    df_auditoria = df_auditoria.drop(columns=columnas_presentes)
+
+st.markdown(f"**Registros encontrados:** `{len(df_auditoria)} facturas/pagos`")
+
+if not df_auditoria.empty:
+    # Configurar diseño profesional de columnas nativo de Streamlit
+    configuracion_columnas = {}
+    formato_moneda = {}
+    
+    # Formato de Moneda para las columnas financieras
+    for col_moneda in ['COSTO S/IVA', 'IVA', 'IMPORTE']:
+        if col_moneda in df_auditoria.columns:
+            # Asegurar numérico puro en pandas
+            df_auditoria[col_moneda] = pd.to_numeric(df_auditoria[col_moneda].astype(str).str.replace(r'[^\d.-]', '', regex=True), errors='coerce').fillna(0)
+            
+            # Guardamos el formato con comas para el Styler de Pandas
+            formato_moneda[col_moneda] = "${:,.2f}"
+            
+            # Nombre amigable para el header
+            header_name = col_moneda
+            if col_moneda == 'COSTO S/IVA':
+                header_name = "Costo S/IVA"
+            elif col_moneda == 'IMPORTE':
+                header_name = "Importe Total"
+                
+            configuracion_columnas[col_moneda] = st.column_config.NumberColumn(header_name)
+            
+    if 'A FAVOR DE' in df_auditoria.columns:
+        configuracion_columnas['A FAVOR DE'] = st.column_config.TextColumn(
+            "A Favor De (Proveedor/Beneficiario)"
+        )
+    if 'MES' in df_auditoria.columns:
+        configuracion_columnas['MES'] = st.column_config.TextColumn("Periodo")
+        
+    df_estilizado = df_auditoria.style.format(formato_moneda)
+        
+    st.dataframe(
+        df_estilizado,
+        column_config=configuracion_columnas,
+        use_container_width=True,
+        hide_index=True
+    )
+else:
+    st.info("No se encontraron registros bajo esos filtros.")
+
+
 # --- AUDITORÍA SOLO PARA ADMIN ---
 if role == "admin":
     st.markdown("<div class='seccion-titulo'>🗄️ Auditoría de Base de Datos (Solo TI)</div>", unsafe_allow_html=True)
@@ -848,7 +976,7 @@ st.markdown(
     <div style='text-align: center; color: #94a3b8; font-size: 13px;'>
         <strong>Dirección Desarrollo Proyectos</strong><br>
         Dashboard diseñado e implementado por TI DDP (J. Leonardo Velázques Rocha).<br>
-        Derechos reservados &copy; 2026. Versión de Sistema v1.34.0
+        Derechos reservados &copy; 2026. Versión de Sistema v1.47.0
     </div>
     """,
     unsafe_allow_html=True
